@@ -12,8 +12,9 @@ Installation
 Requirements
 ------------
 The installation script will check for requirements. We recommend to install all to enable the full range of features
--	python	(Hey, its written in python… you need it!)
--	...
+-	Python	(Hey, its written in python… you need it!)
+-   Kivy
+-	PostgreSQL
 
 Using the install script
 ------------------------
