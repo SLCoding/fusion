@@ -1,13 +1,5 @@
-
-<<<<<<< HEAD
 *.komodoproject
-
 .DS_Store
-
 *.DS_Store
 *.pyc
-=======
-.DS_Store
 
-*.komodoproject
->>>>>>> master
