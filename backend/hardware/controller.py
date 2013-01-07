@@ -1,73 +1,103 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
-import pygame
 import time
-import re
-well_known_gamepads = {"3":"PS3", "Xbox":"XBOX"}
+import pygame
+import threading
+from pygame.locals import *
 
-class cGamepad(object):
+#
+#Gamepad Class
+#
+#Used to store information like slot, keymapping etc
+#passes button presses into the queue
+#
+#
+#
+
+class gamepad(object):
+	def __init__(self, slot, dev, buttonQueue):
+		self.slot = slot
+		self.dev = dev
+		self.buttonQueue = buttonQueue
 	
+		self.joyObj = pygame.joystick.Joystick(slot)
+		self.joyObj.init()
+		
+		for i in range(joy.Obj.get_numbuttons()):
+			self.keys[i] = False
+		
+	def handleEvent(self, event):
+		if event.type == JOYBUTTONUP:
+			self.keys[event.button] = False
+		elif event.type == JOYBUTTONDOWN:
+			self.keys[event.button] = True
+		
+		#tastenkombo
+
+
+
+
+#
+# deviceHandler Class
+#
+#keeps track of the Gamepads and registers new ones(creates object of gamepad class)
+#
+#
+#receives events from gamepadListener and passes them to the gamepad object
+#
+class deviceHandler(threading.Thread):
+	def __init__(self, buttonQueue, devQueue):
+		self.buttonQueue = buttonQueue
+		self.devQueue = devQueue
+		self.start()
+		
+		self.gamepads = []
+		
+	def run(self):
+		clock = pygame.time.Clock()
+		time_change_prev = 0
+		while True:
+			clock.tick(5)
+			
+			time_change = time.mktime(time.localtime(ps.path.getmtime("")))
+			if time_change_prev != time_change:
+				time_change_prev = time_change
+				self.gamepad_refresh()
+			
 	
-	def __init__(self, p_slot):
-		self.slot = p_slot
-		if not pygame.joystick.get_init():
-			pygame.jostick.init()
-			
-		self.joy_obj = pygame.joystick.Joystick(p_slot)
+	def gamepad_refresh(self):
+		pass
+	
+	def passEvent(self, event):
+		self.gamepads[event.joy].handleEvent(event)
 
-		if not self.joy_obj.get_init():
-			self.joy_obj.init()
-			
-		self.name = self.joy_obj.get_name()
+
+
+
+#
+# gamepadListener Class
+#
+#creates object of deviceHandler Class automatically, but needs to be created manually itself
+#
+#listens for gamepad events on pygame eventqueue
+#
+#passes events to the device handler for further processing
+#
+
+class gamepadListener(threading.Thread):
+	def __init__(self, buttonQueue, devQueue):
+		self.deviceHandler = deviceHandler(buttonQueue, devQueue)
 		
-		for well_known in well_known_gamepads:
-			print well_known
-			if re.search(well_known, self.name ) != None:
-				self.type = well_known_gamepads[well_known]
-				break
-			else:
-				self.type = "UNKNOWN"
+		pygame.init()
+		pygame.event.set_allowed(JOYBUTTONUP, JOYBUTTONDOWN)
+		self.start()
+	
+	def run(self):
+		self.eventHandler()
 		
 		
-		
-		
-	@staticmethod
-	def get_Gamepads(num = 0):
-		if num != 0:
-			return cGamepad(num)
-			
-		if not pygame.joystick.get_init():
-			pygame.joystick.init()
-		gamepads = []
-		
-		gamepad_count = pygame.joystick.get_count()
-		
-		for i in range(0, gamepad_count):
-			gamepads.append(cGamepad(i))
-		return gamepads
-			
-			
-	def printInfo(self):
-		print "Slot: " + str(self.slot)
-		print "Name: " + str(self.name)
-		print "Type: " + str(self.type)
-
-
-
-
-#pygame.init()
-pygame.joystick.init()
-
-#well_known_controller = ("PLAYSTATION", "XBOX")
-
-gamepads = cGamepad.get_Gamepads()
-for gamepad in gamepads:
-	gamepad.printInfo()
-#gamepad = cGamepad.get_Gamepads()
-#gamepad.printInfo()
-
-a = raw_input("Zum Beenden Taste drücken")
-
-
-print "test"
+	def eventHandler(self):
+		while True:
+			event = pygame.event.wait()
+			self.deviceHandler.passEvent(event)
