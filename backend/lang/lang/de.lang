@@ -1,0 +1,8 @@
+[general]
+code = de
+name = Deutsch
+author = wiesendaniel (Daniel Wiesendorf)
+
+[test]
+string1 = teststring
+string2 = teststring2
