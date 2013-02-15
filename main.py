@@ -35,11 +35,11 @@ def start(loggervalue):
     logger(loggervalue)
     
     
-    #from backend.lang.lang import lang
-    #langinst = lang('de')
-    #langinst.getString('test1', 'string3')
-    #langinst.getCurrent()
-    #print langinst.getAvailable()
+    from backend.lang.lang import lang
+    langinst = lang('de')
+    langinst.getString('test1', 'string3')
+    langinst.getCurrent()
+    print langinst.getAvailable()
     
     return 0
 
