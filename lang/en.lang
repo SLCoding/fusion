@@ -1,0 +1,8 @@
+[general]
+code = en
+name = English
+author = 
+
+[test]
+string1 = teststring
+string2 = teststring2
