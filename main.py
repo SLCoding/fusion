@@ -24,6 +24,8 @@ Get more information at: https://github.com/SLCoding/fusion
 import os
 import sys
 import getopt
+import backend.hardware.gamepad
+import Queue
 
 class Usage(Exception):
     def __init__(self, msg):
@@ -33,6 +35,30 @@ def start(loggervalue):
     # create logger
     from backend.logger.logger import logger
     logger(loggervalue)
+    devQueue = Queue.Queue()
+    btnQueue = Queue.Queue()
+    listener = backend.hardware.gamepad.cGamepadListener(btnQueue, devQueue)
+    combo = listener.registerKeycombo((0,3))
+    while True:
+        evt = btnQueue.get()
+        out = ""
+        if evt["type"] == 0:
+            out = "BUTTON " + str(evt["code"])
+            if evt["value"] == 1:
+                out += " DOWN"
+            else:
+                out += " UP"
+        elif evt["type"] == 1:
+            out = "AXIS " + str(evt["code"]) + " MOVED: " + str(evt["value"])
+        elif evt["type"] == 2:
+            out = "COMBO " + str(evt["code"])
+            if evt["value"] == 1:
+                out += " DOWN"
+            else:
+                out += " UP"
+        print out
+    
+    listener.join()
     
     
     #from backend.lang.lang import lang
