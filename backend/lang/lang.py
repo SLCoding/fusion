@@ -27,10 +27,17 @@ class lang(object):
     """
     def __init__(self, langcode = None):
         self.logger = logging.getLogger('lang')
-        self.langcode = langcode
         self.langpath = os.path.join(os.getcwd(), 'lang')
         
-        fullpath = os.path.join(self.langpath, langcode + '.lang')
+        if langcode == None:
+            configfile = SafeConfigParser()
+            configfile.read( os.path.expanduser('~/.fusion/fusion.cfg') )        
+            self.langcode = configfile.get('lang', 'langcode')
+        else:
+            self.langcode = langcode
+        
+        fullpath = os.path.join(self.langpath, self.langcode + '.lang')
+        
         if not os.path.isfile(fullpath):
             self.logger.warn('"%s.lang" dosn\'t exist. '
                 '"en.lang" is taken instead' % self.langcode)

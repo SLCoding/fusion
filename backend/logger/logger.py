@@ -24,66 +24,69 @@ class logger(object):
     Initialisation of the standard Python logger.
     Sets root logger and its config.
     """
-    def __init__(self, levelconsole = None):
+    def __init__(self, console_level = None):
         
-        #read configfile        
+        #read configfile 
         configfile = SafeConfigParser()
-        configfile.read( os.path.expanduser('~/.fusion/fusion.cfg') )        
-        level = configfile.get('logger', 'file_level')
+        configfile.read( os.path.expanduser('~/.fusion/fusion.cfg') )
         
-        #set format for logging to file
-        log_format = '%(asctime)s %(levelname)-8s %(name)-12s: %(message)s'
-        log_dateformat = '%Y%m%d %H:%M'
         log_file = configfile.get('logger', 'file')
-                
-        # set up rootlogger to file
-        if level == '1':
-            logging.basicConfig(level=logging.DEBUG,
-                format=log_format, datefmt=log_dateformat,
-                filename=log_file, filemode='w')
-        elif level == '2':
-            logging.basicConfig(level=logging.INFO,
-                format=log_format, datefmt=log_dateformat,
-                filename=log_file, filemode='w')
-        elif level == '3':
-            logging.basicConfig(level=logging.WARNING,
-                format=log_format, datefmt=log_dateformat,
-                filename=log_file, filemode='w')
-        elif level == '4':
-            logging.basicConfig(level=logging.ERROR,
-                format=log_format, datefmt=log_dateformat,
-                filename=log_file, filemode='w')
-        elif level == '5':
-            logging.basicConfig(level=logging.CRITICAL,
-                format=log_format, datefmt=log_dateformat,
-                filename=log_file, filemode='w')
-        
-        #create a console logger
-        console = logging.StreamHandler()
-        
+        file_level = configfile.get('logger', 'file_level')
         #get console logginglevel from config if logging param isn't set
-        if levelconsole == None:
-            levelconsole = configfile.get('logger', 'console_level')
+        if console_level == None:
+            console_level = configfile.get('logger', 'console_level')
         
-        if levelconsole == '1':
-            console.setLevel(logging.DEBUG)
-        elif levelconsole == '2':
-            console.setLevel(logging.INFO)
-        elif levelconsole == '3':
-            console.setLevel(logging.WARNING)
-        elif levelconsole == '4':
-            console.setLevel(logging.ERROR)
-        elif levelconsole == '5':
-            console.setLevel(logging.CRITICAL)
-        
+        log_dateformat = '%Y%m%d %H:%M'
+        #set format for logging to file
+        file_format = logging.Formatter(fmt='%(asctime)s %(levelname)-8s %(name)-12s: %(message)s', datefmt=log_dateformat)
         # set a format which is simpler for console use
-        formatter = logging.Formatter('%(levelname)-8s %(name)-12s: %(message)s')
-        # tell the handler to use this format
-        console.setFormatter(formatter)
+        console_format = logging.Formatter(fmt='%(levelname)-8s %(name)-12s: %(message)s', datefmt=log_dateformat)
+                        
+        # set up rootlogger
+        logging.basicConfig(level=logging.DEBUG, filename='/dev/null')
         
-        # add the handler to the root logger
-        logging.getLogger('').addHandler(console)
+        if not file_level == '0':
+            #create a file logger
+            filelogger = logging.FileHandler(log_file)
+            
+            if file_level == '1':
+                filelogger.setLevel(logging.DEBUG)
+            elif file_level == '2':
+                filelogger.setLevel(logging.INFO)
+            elif file_level == '3':
+                filelogger.setLevel(logging.WARNING)
+            elif file_level == '4':
+                filelogger.setLevel(logging.ERROR)
+            elif file_level == '5':
+                filelogger.setLevel(logging.CRITICAL)
+            
+            # tell the handler to use this format
+            filelogger.setFormatter(file_format)
+            
+            # add the handler to the root logger
+            logging.getLogger('').addHandler(filelogger)
         
+        if not console_level == '0':
+            #create a console logger
+            consolelogger = logging.StreamHandler()
+            
+            if console_level == '1':
+                consolelogger.setLevel(logging.DEBUG)
+            elif console_level == '2':
+                consolelogger.setLevel(logging.INFO)
+            elif console_level == '3':
+                consolelogger.setLevel(logging.WARNING)
+            elif console_level == '4':
+                consolelogger.setLevel(logging.ERROR)
+            elif console_level == '5':
+                consolelogger.setLevel(logging.CRITICAL)
+            
+            # tell the handler to use this format
+            consolelogger.setFormatter(console_format)
+            
+            # add the handler to the root logger
+            logging.getLogger('').addHandler(consolelogger)
+            
 
 if __name__ == "__main__":
     pass

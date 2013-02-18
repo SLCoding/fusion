@@ -36,7 +36,7 @@ def start(loggervalue):
     
     
     from backend.lang.lang import lang
-    langinst = lang('de')
+    langinst = lang()
     #langinst.getString('test1', 'string3')
     langinst.getCurrent()
     langinst.getAvailable()
