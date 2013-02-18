@@ -28,7 +28,7 @@ class lang(object):
     def __init__(self, langcode = None):
         self.logger = logging.getLogger('lang')
         self.langcode = langcode
-        self.langpath = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'lang')
+        self.langpath = os.path.join(os.getcwd(), 'lang')
         
         fullpath = os.path.join(self.langpath, langcode + '.lang')
         if not os.path.isfile(fullpath):
@@ -66,10 +66,11 @@ class lang(object):
         except:
             self.logger.error('Missing general information '
                 'in languagefile "%s.lang"' % self.langcode)
+            return -1
         
     def getAvailable(self):
         avlangs = []
-        
+
         try:
             for avlangfile in os.listdir(self.langpath):
                 tempfile = SafeConfigParser()
@@ -81,8 +82,9 @@ class lang(object):
                 except:
                     self.logger.error('Missing general information '
                         'in languagefile "%s"' % avlangfile)
-        except IOError, OSError:
+        except OSError:
             self.logger.critical( 'Path to langfiles don\'t exist!' )
+            return -1
             
         return avlangs
         

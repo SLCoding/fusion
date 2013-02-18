@@ -21,23 +21,22 @@ from ConfigParser import SafeConfigParser
 
 class logger(object):
     """
-    Loggerinit
-    
+    Initialisation of the standard Python logger.
+    Sets root logger and its config.
     """
     def __init__(self, levelconsole = None):
         
-        #read configfile
-        
+        #read configfile        
         configfile = SafeConfigParser()
-        configfile.read( os.path.expanduser('~/.fusion/fusion.cfg') )
-        
+        configfile.read( os.path.expanduser('~/.fusion/fusion.cfg') )        
         level = configfile.get('logger', 'file_level')
-                
+        
+        #set format for logging to file
         log_format = '%(asctime)s %(levelname)-8s %(name)-12s: %(message)s'
         log_dateformat = '%Y%m%d %H:%M'
         log_file = configfile.get('logger', 'file')
                 
-        # set up logging to file - see previous section for more details
+        # set up rootlogger to file
         if level == '1':
             logging.basicConfig(level=logging.DEBUG,
                 format=log_format, datefmt=log_dateformat,
@@ -58,9 +57,11 @@ class logger(object):
             logging.basicConfig(level=logging.CRITICAL,
                 format=log_format, datefmt=log_dateformat,
                 filename=log_file, filemode='w')
-
+        
+        #create a console logger
         console = logging.StreamHandler()
         
+        #get console logginglevel from config if logging param isn't set
         if levelconsole == None:
             levelconsole = configfile.get('logger', 'console_level')
         

@@ -37,9 +37,9 @@ def start(loggervalue):
     
     from backend.lang.lang import lang
     langinst = lang('de')
-    langinst.getString('test1', 'string3')
+    #langinst.getString('test1', 'string3')
     langinst.getCurrent()
-    print langinst.getAvailable()
+    langinst.getAvailable()
     
     return 0
 
@@ -50,14 +50,8 @@ Options:
             [-h] [--help]                     show help
             [-u] [--usage]                    show this
             [-d] (1-5) [--debug] (1-5)        debug output level
-            [-s] [--start]                    start the script
     """
-    
-#   if not os.geteuid()==0:
-#       sys.exit("Only root can run this script")    
-      
-    
-    
+
     if argv is None:
         argv = sys.argv
     try:
