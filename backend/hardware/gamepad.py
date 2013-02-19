@@ -139,6 +139,7 @@ class cGamepad(object):
                 eventDict["value"] = event.value
                 self.btnQueue.put(eventDict)
         
+#TODO: Handle hat values
         elif event.type == JOYHATMOTION:
             try:
                 if re.match("^b[0-9]+$", self.keymap["h" + str(event.axis)]):
@@ -216,9 +217,11 @@ class cGamepad(object):
     #generates a new Keymap for unknown gamepads
     #
     def newKeymap(self):
+#TODO: write function to create a new Keymap, maybe give option to use default one
         pass
     
-    
+
+#TODO: Keycombos with gamepad reinitializing 
     def registerKeycombo(self, keys):
         self.logger.debug("Gamepad registerKeycombo")
         btnkeys = []
@@ -252,7 +255,7 @@ class cDeviceHandler(threading.Thread):
         lastsum = ""
         while True:
             clock.tick(1)
-            
+#TODO: check last time changed, then do md5sum in order to maximize performance
             newsum = md5File("/proc/bus/input/devices")
             if newsum != lastsum:
                 self.logger.debug("devices changed! Reinitializing Gamepads!")
