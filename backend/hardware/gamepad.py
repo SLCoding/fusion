@@ -24,7 +24,7 @@ class cKeycombo(object):
         hashvalue = md5.new()
         for key in keys:
             hashvalue.update(str(key))
-        self.id = hashvalue.hexdigist()
+        self.id = hashvalue.hexdigest()
         
 #
 # cGamepad Class
@@ -52,7 +52,7 @@ class cGamepad(object):
         self.loadKeymap(self.searchKeymap(self.joyObj.get_name()))
         
         for i in range(self.num_buttons):
-            self.keys[i] = False
+            self.keys["b" + str(i)] = False
         
     #
     #react on button presses, axis etc.
@@ -119,7 +119,9 @@ class cGamepad(object):
         #check if event had influence on registered Keycombos
         eventDict = {}
         eventDict["slot"] = self.slot
+        
         for combo in self.keycombos:
+            
             pressed = True
             for key in combo.keys:
                 if self.keys[key] == False:
@@ -177,11 +179,12 @@ class cGamepad(object):
     
     
     def registerKeycombo(self, keys):
+        self.logger.debug("Gamepad registerKeycombo")
         btnkeys = []
         for key in keys:
             btnkeys.append("b" + str(key))
         keycombo = cKeycombo(btnkeys)
-        self.keycombos.append(keycombo(btnkeys))
+        self.keycombos.append(keycombo)
         return keycombo.id
         
 #
@@ -223,6 +226,7 @@ class cDeviceHandler(threading.Thread):
         self.gamepads[event.joy].handleEvent(event)
         
     def registerKeycombo(self, keys, gamepad = None):
+        self.logger.debug("DeviceHandler registerKeycombo")
         comboid = None
         if gamepad == None:
             for gamepad in self.gamepads:
@@ -268,6 +272,7 @@ class cGamepadListener(threading.Thread):
             self.deviceHandler.passEvent(event)
     
     def registerKeycombo(self, keys, gamepad = None):
+        self.logger.debug("GamepadListener registerKeycombo")
         return self.deviceHandler.registerKeycombo(keys, gamepad)
 
 

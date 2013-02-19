@@ -26,6 +26,7 @@ import sys
 import getopt
 import backend.hardware.gamepad
 import Queue
+import time
 
 class Usage(Exception):
     def __init__(self, msg):
@@ -38,7 +39,8 @@ def start(loggervalue):
     devQueue = Queue.Queue()
     btnQueue = Queue.Queue()
     listener = backend.hardware.gamepad.cGamepadListener(btnQueue, devQueue)
-    combo = listener.registerKeycombo((0,3))
+    time.sleep(5)
+    combo = listener.registerKeycombo((0,3, 8, 9, 10, 11))
     while True:
         evt = btnQueue.get()
         out = ""
@@ -51,6 +53,7 @@ def start(loggervalue):
         elif evt["type"] == 1:
             out = "AXIS " + str(evt["code"]) + " MOVED: " + str(evt["value"])
         elif evt["type"] == 2:
+            print "TEST"
             out = "COMBO " + str(evt["code"])
             if evt["value"] == 1:
                 out += " DOWN"
