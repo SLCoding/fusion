@@ -10,7 +10,22 @@ import logging
 import sys
 import os
 import md5
+import hashlib
 from pygame.locals import *
+
+
+
+def md5File(filePath):
+    fh = open(filePath, 'rb')
+    m = hashlib.md5()
+    while True:
+        data = fh.read(8192)
+        if not data:
+            break
+        m.update(data)
+    return m.hexdigest()
+
+
 
 #
 # cKeycombo Class
@@ -45,7 +60,10 @@ class cGamepad(object):
         self.num_axes = self.joyObj.get_numaxes()
         self.num_hats = self.joyObj.get_numhats()
         self.num_buttons = self.joyObj.get_numbuttons()
+        
         self.keys = {}
+        self.hats = {}
+        
         self.keycombos = []
         self.keymapName = ""
         self.keymap = {}
@@ -53,6 +71,12 @@ class cGamepad(object):
         
         for i in range(self.num_buttons):
             self.keys["b" + str(i)] = False
+        
+        
+        
+    def __del__(self):
+        self.logger.debug("cGamepad destructor")
+        self.joyObj.quit()
         
     #
     #react on button presses, axis etc.
@@ -114,6 +138,23 @@ class cGamepad(object):
                 eventDict["code"] = int((self.keymap["a" + str(event.axis)])[1:])
                 eventDict["value"] = event.value
                 self.btnQueue.put(eventDict)
+        
+        elif event.type == JOYHATMOTION:
+            try:
+                if re.match("^b[0-9]+$", self.keymap["h" + str(event.axis)]):
+                    eventDict["type"] = 0
+                elif re.match("^a[0-9]+$", self.keymap["h" + str(event.hat) + "," + ""]):
+                    eventDict["type"] = 1
+                else:
+                    self.logger.error("Button mapping exception")
+            except KeyError:
+                pass
+            else:
+                eventDict["code"] = int((self.keymap["a" + str(event.axis)])[1:])
+                eventDict["value"] = event.value
+                self.btnQueue.put(eventDict)
+                
+        
         
         
         #check if event had influence on registered Keycombos
@@ -204,24 +245,39 @@ class cDeviceHandler(threading.Thread):
         self.gamepads = []
         
         self.start()
-      
+        
     def run(self):
+        clock = pygame.time.Clock()
+        
+        lastsum = ""
+        while True:
+            clock.tick(1)
+            
+            newsum = md5File("/proc/bus/input/devices")
+            if newsum != lastsum:
+                self.logger.debug("devices changed! Reinitializing Gamepads!")
+                lastsum = newsum
+                self.initialize_gamepads()
+   
+    def initialize_gamepads(self):
+        self.logger.debug("Deleting old Gamepads")
+        for gamepad in self.gamepads:
+            del gamepad
+        self.gamepads = []
+        
+        self.logger.debug("Uninitialize Joystick module")
+        pygame.joystick.quit()
+        self.logger.debug("Clear Event Queue")
+        pygame.event.clear()
+        self.logger.debug("Initialize Joystick module")
+        pygame.joystick.init()
+        
+        self.logger.debug("Initialize Gamepads")
         for i in range(pygame.joystick.get_count()):
             self.gamepads.append(cGamepad(i, self.btnQueue, self.logger))
             
-#        clock = pygame.time.Clock()
-#        time_change_prev = 0
-#        while True:
-#            clock.tick(5)
-#            
-#            time_change = time.mktime(time.localtime(ps.path.getmtime("")))
-#            if time_change_prev != time_change:
-#                time_change_prev = time_change
-#                self.gamepad_refresh()
-#            
-#    def gamepad_refresh(self):
-#        pass
-#    
+        self.logger.debug("Reinitializing Gamedpads Done!")
+        
     def passEvent(self, event):
         self.gamepads[event.joy].handleEvent(event)
         
@@ -258,7 +314,7 @@ class cGamepadListener(threading.Thread):
         self.deviceHandler = cDeviceHandler(btnQueue, devQueue, self.logger)
         
 
-        pygame.event.set_allowed((JOYBUTTONUP, JOYBUTTONDOWN, JOYAXISMOTION))
+        pygame.event.set_allowed((JOYBUTTONUP, JOYBUTTONDOWN, JOYAXISMOTION, JOYHATMOTION))
         self.logger.debug("Pygame and eventQueue initialized")
         self.start()
         
