@@ -33,11 +33,17 @@ def md5File(filePath):
 #Used to manage keycombos, merely a structure
 #
 class cKeycombo(object):
-    def __init__(self, keys):
-        self.keys = keys
+    def __init__(self, keys):            
+        btnkeys = []
+        for key in keys:
+            btnkeys.append("b" + str(key))
+            
+        self.keys = btnkeys
         self.pressed = False
         hashvalue = md5.new()
-        for key in keys:
+        
+        
+        for key in self.keys:
             hashvalue.update(str(key))
         self.id = hashvalue.hexdigest()
         
@@ -77,7 +83,7 @@ class cGamepad(object):
     def __del__(self):
         self.logger.debug("cGamepad destructor")
         self.joyObj.quit()
-        
+    
     #
     #react on button presses, axis etc.
     #
@@ -221,15 +227,9 @@ class cGamepad(object):
         pass
     
 
-#TODO: Keycombos with gamepad reinitializing 
-    def registerKeycombo(self, keys):
+    def registerKeycombo(self, keycombo):
         self.logger.debug("Gamepad registerKeycombo")
-        btnkeys = []
-        for key in keys:
-            btnkeys.append("b" + str(key))
-        keycombo = cKeycombo(btnkeys)
         self.keycombos.append(keycombo)
-        return keycombo.id
         
 #
 # cDeviceHandler Class
@@ -247,7 +247,11 @@ class cDeviceHandler(threading.Thread):
         self.devQueue = devQueue
         self.gamepads = []
         
+        self.registeredKeycombos = []
+        self.gamepadsInitialized = False
+        
         self.start()
+        
         
     def run(self):
         clock = pygame.time.Clock()
@@ -264,36 +268,52 @@ class cDeviceHandler(threading.Thread):
    
     def initialize_gamepads(self):
         self.logger.debug("Deleting old Gamepads")
+        
+        self.gamepadsInitialized = False
+        
+        #Uninitialize Gamepads
         for gamepad in self.gamepads:
             del gamepad
         self.gamepads = []
         
+        #Uninitialize Joystick Module an clean up the garbage
         self.logger.debug("Uninitialize Joystick module")
         pygame.joystick.quit()
         self.logger.debug("Clear Event Queue")
         pygame.event.clear()
+        
+        #Reinitialize Joystick Module
         self.logger.debug("Initialize Joystick module")
         pygame.joystick.init()
         
+        #Reinitialize Gamepads
         self.logger.debug("Initialize Gamepads")
         for i in range(pygame.joystick.get_count()):
             self.gamepads.append(cGamepad(i, self.btnQueue, self.logger))
-            
+        
+        #Reregister Keycombos for all found Gamepads
+        for keycombo in self.registeredKeycombos:
+            for gamepad in self.gamepads:
+                gamepad.registerKeycombo(keycombo)
+        
+        #Everything Reinitialized, new Gamepads should be registered
+        self.gamepadsInitialized = True
         self.logger.debug("Reinitializing Gamedpads Done!")
+        
         
     def passEvent(self, event):
         self.gamepads[event.joy].handleEvent(event)
         
     def registerKeycombo(self, keys, gamepad = None):
         self.logger.debug("DeviceHandler registerKeycombo")
-        comboid = None
-        if gamepad == None:
-            for gamepad in self.gamepads:
-                comboid = gamepad.registerKeycombo(keys)
-        else:
-            comboid = self.gamepads[gamepad].registerKeycombo(keys)
+        new_keycombo = cKeycombo(keys)
+        self.registeredKeycombos.append(new_keycombo)
         
-        return comboid
+        if self.gamepadsInitialized:
+            for gamepad in self.gamepads:
+                gamepad.registerKeycombo(new_keycombo)
+                
+        return new_keycombo.id
 
 #
 # cGamepadListener Class

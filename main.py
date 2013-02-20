@@ -39,7 +39,6 @@ def start(loggervalue):
     devQueue = Queue.Queue()
     btnQueue = Queue.Queue()
     listener = backend.hardware.gamepad.cGamepadListener(btnQueue, devQueue)
-    time.sleep(5)
     combo = listener.registerKeycombo((0,3, 8, 9, 10, 11))
     while True:
         evt = btnQueue.get()
