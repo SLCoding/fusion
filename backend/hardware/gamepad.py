@@ -188,9 +188,7 @@ class cGamepad(object):
                     eventDict["value"] = 0
                 self.btnQueue.put(eventDict)
     
-    #
-    #loads presaved Keymap for known gamepads         
-    #
+
     def searchKeymap(self, name):
         configparser = ConfigParser.SafeConfigParser()
         configparser.read( os.path.expanduser('~/.fusion/hardware/keymaps.default.cfg') )
@@ -204,7 +202,9 @@ class cGamepad(object):
         self.logger.debug("No Keymap found for Controller " + name)
         return None
     
-    
+    #
+    #loads presaved Keymap for known gamepads         
+    #
     def loadKeymap(self, keymap):
         configparser = ConfigParser.SafeConfigParser()
         configparser.read( os.path.expanduser('~/.fusion/hardware/keymaps.default.cfg') )
@@ -323,13 +323,13 @@ class cDeviceHandler(threading.Thread):
 #passes events to the device handler for further processing
 #
 class cGamepadListener(threading.Thread):
-    def __init__(self, btnQueue, devQueue):
+    def __init__(self):
         threading.Thread.__init__(self)
         self.logger = logging.getLogger("cGamepad")
         self.logger.debug("cGamepad class initializing")
         
-        self.btnQueue = btnQueue
-        self.devQueue = devQueue
+        self.btnQueue = Queue.Queue()
+        self.devQueue = Queue.Queue()
         
         pygame.init()
         pygame.joystick.init()
