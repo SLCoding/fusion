@@ -36,12 +36,9 @@ def start(loggervalue):
     # create logger
     from backend.logger.logger import logger
     logger(loggervalue)
-
-    listener = backend.hardware.gamepad.cGamepadListener()
-    
-    devQueue = listener.devQueue
-    btnQueue = listener.btnQueue
-    
+    devQueue = Queue.Queue()
+    btnQueue = Queue.Queue()
+    listener = backend.hardware.gamepad.cGamepadListener(btnQueue, devQueue)
     combo = listener.registerKeycombo((0,3, 8, 9, 10, 11))
     while True:
         evt = btnQueue.get()
