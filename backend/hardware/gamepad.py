@@ -10,6 +10,7 @@ import logging
 import md5
 import hashlib
 import uuid
+import os
 from pygame.locals import *
 
 def md5File(filePath):
@@ -101,6 +102,7 @@ class cGamepad(object):
         axisThreshold = 0.5
             
         eventDict = {}
+        eventDict2 = {}
         prefix = None
         code = None
         code2 = None
@@ -127,7 +129,7 @@ class cGamepad(object):
         
         
         #if normal gamepadMode
-        if handleMode == 0:
+        if self.handleMode == 0:
             try:
                 if re.match("^b[0-9]+$", self.keymap[code]):
                     eventDict["type"] = 0
@@ -172,20 +174,21 @@ class cGamepad(object):
                 #or isnt pressed but was before
                 if pressed != combo.pressed:
                     combo.pressed = pressed
-                    eventDict["type"] = 2
-                    eventDict["code"] = combo.id
+                    eventDict2["slot"] = self.slot
+                    eventDict2["type"] = 2
+                    eventDict2["code"] = combo.id
                     if pressed == True:
-                        eventDict["value"] = 1
+                        eventDict2["value"] = 1
                     else:
-                        eventDict["value"] = 0
-                    self.btnQueue.put(eventDict)
+                        eventDict2["value"] = 0
+                    self.btnQueue.put(eventDict2)
             else:
                 pass
         
 
 #TODO: skip buttons
         #if keymapping mode
-        elif handleMode == 1:
+        elif self.handleMode == 1:
             if re.match("^b[0-9]+$", cGamepad.gencontrollerButtons[self.current_mapid]):
                 eventDict["type"] = 0
             elif re.match("^a[0-9]+$", cGamepad.gencontrollerButtons[self.current_mapid]):
@@ -271,7 +274,8 @@ class cGamepad(object):
     
     def registerKeycombo(self, keycombo):
         self.logger.debug("Gamepad registerKeycombo")
-        self.keycombos.append(keycombo)
+        if self.keycombos.count(keycombo) < 1:
+            self.keycombos.append(keycombo)
         
 #
 # cDeviceHandler Class

@@ -55,7 +55,6 @@ def start(loggervalue):
         elif evt["type"] == 1:
             out = "AXIS " + str(evt["code"]) + " MOVED: " + str(evt["value"])
         elif evt["type"] == 2:
-            print "TEST"
             out = "COMBO " + str(evt["code"])
             if evt["value"] == 1:
                 out += " DOWN"
