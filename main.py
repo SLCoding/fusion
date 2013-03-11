@@ -27,7 +27,15 @@ import getopt
 import backend.hardware.gamepad
 import Queue
 import time
+import thread
 
+def mappingThread(devQueue):
+    while True:
+        evt = devQueue.get()
+        if evt["key"] != None:
+            print "Press " + evt["key"]
+        else:
+            print "Mapping succesful"
 class Usage(Exception):
     def __init__(self, msg):
         self.msg = msg
@@ -37,30 +45,16 @@ def start(loggervalue):
     from backend.logger.logger import logger
     logger(loggervalue)
 
-    listener = backend.hardware.gamepad.cGamepadListener()
+    listener = backend.hardware.gamepad.cGamepadHandler()
     
     devQueue = listener.devQueue
     btnQueue = listener.btnQueue
     
-    combo = listener.registerKeycombo((0,3, 8, 9, 10, 11))
+    #combo = listener.registerKeycombo((0,3, 8, 9, 10, 11))
+    #thread.start_new_thread(mappingThread, (devQueue, ))
     while True:
         evt = btnQueue.get()
-        out = ""
-        if evt["type"] == 0:
-            out = "BUTTON " + str(evt["code"])
-            if evt["value"] == 1:
-                out += " DOWN"
-            else:
-                out += " UP"
-        elif evt["type"] == 1:
-            out = "AXIS " + str(evt["code"]) + " MOVED: " + str(evt["value"])
-        elif evt["type"] == 2:
-            out = "COMBO " + str(evt["code"])
-            if evt["value"] == 1:
-                out += " DOWN"
-            else:
-                out += " UP"
-        print out
+        print evt
     
     listener.join()
     

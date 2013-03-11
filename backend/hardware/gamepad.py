@@ -1,18 +1,17 @@
 #-*- coding: utf-8 -*-
 
-import time
-import re
-import Queue
-import ConfigParser
+import thread
 import pygame
-import threading
+from pygame.locals import *
 import logging
+import Queue
 import md5
 import hashlib
-import uuid
-import os
-from pygame.locals import *
+import re
+import time
+import commands
 
+#TODO: write with md5 module, purge hashlib
 def md5File(filePath):
     fh = open(filePath, 'rb')
     m = hashlib.md5()
@@ -23,283 +22,100 @@ def md5File(filePath):
         m.update(data)
     return m.hexdigest()
 
-#
-# cKeycombo Class
-#
-#Used to manage keycombos, merely a structure
-#
-class cKeycombo(object):
-    def __init__(self, keys):            
-        btnkeys = []
-        for key in keys:
-            btnkeys.append("b" + str(key))
-            
-        self.keys = btnkeys
-        self.pressed = False
-        hashvalue = md5.new()
-        
-        for key in self.keys:
-            hashvalue.update(str(key))
-        self.id = hashvalue.hexdigest()
-        
-#
-# cGamepad Class
-#
-#Used to store information like slot, keymapping etc
-#passes button presses into the queue
-#
-class cGamepad(object):
-    gencontrollerButtons = ["b0", "b1", "b2", "b3", "b4", "b5", "b6",
-                            "b7", "b8", "b9", "b10", "b11", "b12", "b13",
-                            "b14", "b15", "b16", "a0", "a1", "a2", "a3"]
-    mappingController = None
-    
-    def __init__(self, slot, btnQueue, devQueue, logger):
-        self.logger = logger
-        self.logger.debug("cGamepad initialized")
-        self.slot = slot
-        self.btnQueue = btnQueue
-        self.devQueue = devQueue
 
-        self.joyObj = pygame.joystick.Joystick(slot)
+class cMapping(object):
+    """maps physical gamepad buttons to functions or keycodes for specific
+    emulators or similar"""
+    def __init__(self, pJoyName, pMapName):
+        pass
+#TODO: Mapping Class
+
+class cGamepad(object):
+    """holds information about input device"""
+    def __init__(self, pSlot, pDevQueue, pLogger):
+        self.logger = pLogger
+        self.logger.debug("cGamepad initialized")
+        self.slot = pSlot
+        self.devQueue = pDevQueue
+        self.batStat = -1
+        
+        self.joyObj = pygame.joystick.Joystick(self.slot)
         self.joyObj.init()
+        self.name = self.joyObj.get_name()
         self.num_axes = self.joyObj.get_numaxes()
         self.num_hats = self.joyObj.get_numhats()
         self.num_buttons = self.joyObj.get_numbuttons()
         
+        self.mapping = {}
+        #self.loadKeymap(self.searchKeymap(self.joyObj.get_name()))
         
-        self.keys = {}
-        self.hats = {}
         
-        #mapid => button or axis ids
-        self.current_mapid = None
+        #set mac-adress if sixaxis controller
+        if re.match("^PLAYSTATION\(R\)3 Controller \([A-F0-9:]{17}\)$", self.name):
+            self.mac = re.findall("[A-F0-9:]{17}", self.name)[0]
+        else:
+            self.mac = None
+#TODO: check if battery status is available
         
-        #handleMode
-        #0 - is normal gamepad-Mode
-        #1 - is used to create a new keymapping
-        #    durig keymapping, no events are passed to the btnQueue
-        self.handleMode = 0
-        
-        self.keycombos = []
-        
-        self.keymapName = ""
-        self.keymap = {}
-        self.loadKeymap(self.searchKeymap(self.joyObj.get_name()))
-        
-        for i in range(self.num_buttons):
-            self.keys["b" + str(i)] = False
+        #if theres a mac adderss (its a sixaxis controller) start batteryListener
+        if self.mac != None:
+            thread.start_new_thread(self.batteryListener, ())
         
     def __del__(self):
         self.logger.debug("cGamepad destructor")
         self.joyObj.quit()
-    
-    #
-    #react on button presses, axis etc.
-    #
-    def handleEvent(self, event):
-        
-        #set threshold for recognizning axis as button input        
-        axisThreshold = 0.5
-            
-        eventDict = {}
-        eventDict2 = {}
-        prefix = None
-        code = None
-        code2 = None
-        
-        eventDict["slot"] = self.slot
-        
-        if event.type == JOYBUTTONUP or event.type == JOYBUTTONDOWN:
-            code = "b" + str(event.button)
-            if event.type == JOYBUTTONUP:
-                eventDict["value"] = 0
-            else:
-                eventDict["value"] = 1
-                
-        elif event.type == JOYAXISMOTION:
-            code = "a" + str(event.axis)
-            if event.value >= axisThreshold:
-                code2 = "a" + str(event.axis) + "d0"
-            elif event.value <= -axisThreshold:
-                code2 = "a" + str(event.axis) + "d1"
-            eventDict["value"] = event.value
-        elif event.type == JOYHATMOTION:
-#TODO: handle JOYHATMOTION
-            return
-        
-        
-        #if normal gamepadMode
-        if self.handleMode == 0:
-            try:
-                if re.match("^b[0-9]+$", self.keymap[code]):
-                    eventDict["type"] = 0
-                elif re.match("^a[0-9]+$", self.keymap[code]):
-                    eventDict["type"] = 1
-                else:
-                    self.logger.error("Button mapping exception")
-            except KeyError:
-                if code2 != None:
-                    code = code2
-                    try:
-                        if re.match("^b[0-9]+$", self.keymap[code]):
-                            eventDict["type"] = 0
-                        elif re.match("^a[0-9]+$", self.keymap[code]):
-                            eventDict["type"] = 1
-                        else:
-                            self.logger.error("Button mapping exception")
-                    except KeyError:
-                        return
-                else:
-                    return
-            
-            eventDict["code"] = int((self.keymap[code])[1:])
-            if eventDict["type"] == 0:
-                eventDict["value"] = round(int(eventDict["value"]))
-                if self.keys[self.keymap[code]] != bool(eventDict["value"]):
-                    self.keys[self.keymap[code]] = bool(eventDict["value"])
-                else:
-                    return
-            self.btnQueue.put(eventDict)
-            
-            #check if event had influence on registered Keycombos
-            for combo in self.keycombos:
-                
-                pressed = True
-                for key in combo.keys:
-                    if self.keys[key] == False:
-                        pressed = False
-                        break
-                    
-                #if keycombo is pressed and wasnt pressed before
-                #or isnt pressed but was before
-                if pressed != combo.pressed:
-                    combo.pressed = pressed
-                    eventDict2["slot"] = self.slot
-                    eventDict2["type"] = 2
-                    eventDict2["code"] = combo.id
-                    if pressed == True:
-                        eventDict2["value"] = 1
-                    else:
-                        eventDict2["value"] = 0
-                    self.btnQueue.put(eventDict2)
-            else:
-                pass
-        
 
-#TODO: skip buttons
-        #if keymapping mode
-        elif self.handleMode == 1:
-            if re.match("^b[0-9]+$", cGamepad.gencontrollerButtons[self.current_mapid]):
-                eventDict["type"] = 0
-            elif re.match("^a[0-9]+$", cGamepad.gencontrollerButtons[self.current_mapid]):
-                eventDict["type"] = 1
-            else:
-                self.logger.error("Button mapping exception")
-                
-            if event.type == JOYBUTTONDOWN or (event.type == JOYAXISMOTION and
-                                               (event.value >= 0.8 or event.value <= -0.8)):
-                if eventDict["type"] == 0 and event.type == JOYAXISMOTION:
-                    self.keymap[code2] = cGamepad.gencontrollerButtons[self.current_mapid]
-                else:
-                    self.keymap[code] = cGamepad.gencontrollerButtons[self.current_mapid]
-                
-                if self.current_mapid < len(cGamepad.gencontrollerButtons):
-                    self.current_mapid+= 1
-#TODO: Nachricht in DeviceQueue
-                else:
-#TODO: Nachricht in DeviceQueue
-                    self.current_mapid = None
-                    cGamepad.mappingController = None
-                    self.saveKeymap()
-                    
-   
-    
 
-    def saveKeymap(self):
-        if self.keymapName == None:
-            self.keymapName = str(uuid.uuid1())
-        regex = self.joyObj.get_name()
-        
-        configparser = ConfigParser.SafeConfigParser()
-        configparser.read( os.path.expanduser('~/.fusion/hardware/keymaps.custom.cfg') )
-        if not configparser.has_section(self.keymapName):
-            configparser.add_section(self.keymapName)
-        
-        for key in self.keymap:
-            configparser.set(self.keymapName, self.keymap[key], key)
-        
+    def getBattery(self):
+        batQuery = "sudo hcidump -R -O '"+self.mac
+        +"' | head -n 5 | tail -n 1 | awk '{printf$1}'"
+        return int(commands.getoutput(batQuery)) * 20
     
-    def searchKeymap(self, name):
-        configparser = ConfigParser.SafeConfigParser()
-        configparser.read( os.path.expanduser('~/.fusion/hardware/keymaps.default.cfg') )
+    def batteryListener(self):
+        while True:
+            newBatStat = self.getBattery()
+            self.logger.debug("Controller " + str(self.slot) +
+                              " Battery Status: " + str(batStat))
+            
+            
+        #commands.getoutput("sudo killall hcidump > /dev/null")
+            #if battery Status changed, pusch it to the Queue
+            if self.batStat != newBatStat:
+                self.logger.info("Controller " + str(self.slot) +
+                                 " New Battery Status: " + str(batStat))
+            time.sleep(20)
+#TODO: battery status ->queue
+
+
+class cGamepadHandler(object):
+    """handles gamepads and passes button events"""
+    def __init__(self):
+        #Set class-variables
+        #initialize logger
+        self.logger = logging.getLogger("cGamepad")
+        self.logger.debug("cGamepad class initializing")
         
-        for section in configparser.sections():
-            self.logger.debug(section + " regex:" + configparser.get(section, "regex") + "name: " + name)
-            if re.match(configparser.get(section, "regex"), name):
-                self.logger.debug("Keymap found for Controller " + name + ": " + section)
-                return section
-        self.logger.debug("No Keymap found for Controller " + name)
-        return None
-    
-    #
-    #loads presaved Keymap for known gamepads         
-    #
-    def loadKeymap(self, keymap):
-        configparser = ConfigParser.SafeConfigParser()
-        configparser.read( os.path.expanduser('~/.fusion/hardware/keymaps.default.cfg') )
-        
-        if keymap == None:
-            self.newKeymap()
-        else:
-            if configparser.has_section(keymap):
-                self.keymapName = keymap
-                for option in configparser.options(keymap):
-                    self.keymap[configparser.get(keymap, option)] = option
-            else:
-                return None
-    
-    #
-    #generates a new Keymap for unknown gamepads
-    #
-    def newKeymap(self):
-#TODO: ??default one??
-        #set gamepad to mapping mode
-        while(cGamepad.mappingController != None):
-            time.sleep(0.5)
-        cGamepad.mappingController = self.slot
-        self.handleMode = 1
-        self.current_mapid = 0
-        
-#TODO: erste map-nachricht schicken
-    
-    def registerKeycombo(self, keycombo):
-        self.logger.debug("Gamepad registerKeycombo")
-        if self.keycombos.count(keycombo) < 1:
-            self.keycombos.append(keycombo)
-        
-#
-# cDeviceHandler Class
-#
-#keeps track of the Gamepads and registers new ones(creates object of cGamepad class)
-#receives events from cGamepadListener and passes them to the gamepad object
-#
-class cDeviceHandler(threading.Thread):
-    def __init__(self, btnQueue, devQueue, logger):
-        threading.Thread.__init__(self)
-        self.logger = logger
-        self.logger.debug("cDeviceHandler initializing")
-        
-        self.btnQueue = btnQueue
-        self.devQueue = devQueue
-        self.gamepads = []
-        
-        self.registeredKeycombos = []
         self.gamepadsInitialized = False
+        self.gamepads = {}
         
-        self.start()
+        self.btnQueue = Queue.Queue()
+        self.devQueue = Queue.Queue()
         
+        #initialize pygame modules
+        pygame.init()
+        pygame.joystick.init()
+#TODO: enable JOYHATMOTION
+        pygame.event.set_allowed((JOYBUTTONUP, JOYBUTTONDOWN,
+                                  JOYAXISMOTION))
+        self.logger.debug("Pygame and eventQueue initialized")
         
-    def run(self):
+        #Now start Threads (gamepadListener and eventHandler)
+        thread.start_new_thread(self.gamepadListener, ())
+        thread.start_new_thread(self.eventHandler, ())
+        
+    #
+    #Threaded! watches for recently (dis-)connected gamepads
+    def gamepadListener(self):
         clock = pygame.time.Clock()
         
         lastsum = ""
@@ -308,13 +124,20 @@ class cDeviceHandler(threading.Thread):
 #TODO: check last time changed, then do md5sum in order to maximize performance
             newsum = md5File("/proc/bus/input/devices")
             if newsum != lastsum:
-                self.logger.debug("devices changed! Reinitializing Gamepads!")
+                self.logger.debug("Devices changed! Reinitializing Gamepads!")
                 lastsum = newsum
-                self.initialize_gamepads()
-   
-    def initialize_gamepads(self):
-        self.logger.debug("Deleting old Gamepads")
+                self.initializeGamepads()
         
+    #
+    #Threaded! waits for events in pygame eventQueue and passes them on
+    def eventHandler(self):
+        while True:
+            event = pygame.event.wait()
+            self.btnQueue.put(event)
+    
+    def initializeGamepads(self):
+        self.logger.debug("Deleting old Gamepads")
+        #set gamepads uninitialized to prevent from errors while reinitializing
         self.gamepadsInitialized = False
         
         #Uninitialize Gamepads
@@ -335,71 +158,10 @@ class cDeviceHandler(threading.Thread):
         #Reinitialize Gamepads
         self.logger.debug("Initialize Gamepads")
         for i in range(pygame.joystick.get_count()):
-            self.gamepads.append(cGamepad(i, self.btnQueue, self.devQueue, self.logger))
+            self.gamepads.append(cGamepad(i, self.devQueue, self.logger))
         
-        #Reregister Keycombos for all found Gamepads
-        for keycombo in self.registeredKeycombos:
-            for gamepad in self.gamepads:
-                gamepad.registerKeycombo(keycombo)
         
         #Everything Reinitialized, new Gamepads should be registered
         self.gamepadsInitialized = True
         self.logger.debug("Reinitializing Gamedpads Done!")
         
-        
-    def passEvent(self, event):
-        self.gamepads[event.joy].handleEvent(event)
-        
-    def registerKeycombo(self, keys, gamepad = None):
-        self.logger.debug("DeviceHandler registerKeycombo")
-        new_keycombo = cKeycombo(keys)
-        self.registeredKeycombos.append(new_keycombo)
-        
-        if self.gamepadsInitialized:
-            for gamepad in self.gamepads:
-                gamepad.registerKeycombo(new_keycombo)
-                
-        return new_keycombo.id
-
-#
-# cGamepadListener Class
-#
-#creates object of deviceHandler Class automatically,
-#but needs to be created manually itself
-#listens for gamepad events on pygame eventqueue
-#passes events to the device handler for further processing
-#
-class cGamepadListener(threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-        self.logger = logging.getLogger("cGamepad")
-        self.logger.debug("cGamepad class initializing")
-        
-        self.btnQueue = Queue.Queue()
-        self.devQueue = Queue.Queue()
-        
-        pygame.init()
-        pygame.joystick.init()
-        pygame.event.set_allowed((JOYBUTTONUP, JOYBUTTONDOWN,
-                                  JOYAXISMOTION, JOYHATMOTION))
-        
-        self.deviceHandler = cDeviceHandler(self.btnQueue, self.devQueue, self.logger)
-        self.logger.debug("Pygame and eventQueue initialized")
-        self.start()
-        
-    def run(self):
-        self.logger.debug("cGamepadListener: eventHandler Thread startet!")
-        self.eventHandler()
-        
-    def eventHandler(self):
-        while True:
-            event = pygame.event.wait()
-            self.deviceHandler.passEvent(event)
-    
-    def registerKeycombo(self, keys, gamepad = None):
-        self.logger.debug("GamepadListener registerKeycombo")
-        return self.deviceHandler.registerKeycombo(keys, gamepad)
-
-
-
-
