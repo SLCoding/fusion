@@ -54,8 +54,8 @@ def start(loggervalue):
     #thread.start_new_thread(mappingThread, (devQueue, ))
     while True:
         evt = btnQueue.get()
-        print evt
-    
+        action = listener.translate("menu", evt)
+        print action["code"]
     listener.join()
     
     

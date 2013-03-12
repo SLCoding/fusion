@@ -1,0 +1,12 @@
+[general]
+regex = ^PLAYSTATION\(R\)3 Controller \([A-F0-9:]{17}\)$
+
+[menu]
+left=b1
+right=b2
+
+[snes]
+A=b1
+B=b2
+Y=b3
+X=b4
